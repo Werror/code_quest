@@ -6,7 +6,15 @@ Map facts used below (x, y), with (0, 0) at the top-left:
   - Row 1 is open from x=1 to x=6, and (7, 1) is a wall.
   - There is a coin at (3, 3).
 """
-from code_quest import MAX_ACTIONS, START, run_player_code
+from code_quest.config import MAX_ACTIONS
+from code_quest.levels.level_01 import LEVEL_01
+from code_quest.runner.runner import run_player_code as _run
+
+START = LEVEL_01.start
+
+
+def run_player_code(source):
+    return _run(source, LEVEL_01)
 
 
 def moves(result):

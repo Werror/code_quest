@@ -14,7 +14,7 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
-python code_quest.py
+python main.py
 ```
 
 ## Run the tests
