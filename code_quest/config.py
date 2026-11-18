@@ -1,6 +1,9 @@
 """Settings shared by the whole game: sizes, limits and colors."""
 
-TILE = 40
+SRC_TILE = 16            # size of one tile in the art files, in pixels
+SCALE = 3                # how many times bigger we draw the pixels
+TILE = SRC_TILE * SCALE  # size of one tile on screen
+STEP_MS = 180            # how long the hero takes to walk one tile
 PANEL_W, BAR_H = 440, 60
 
 MAX_ACTIONS = 500        # stop runaway loops that make tons of moves

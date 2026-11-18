@@ -2,29 +2,39 @@
 import pygame
 
 from ..config import BAR_H, COLORS, PANEL_W, TILE
+from . import sprites as S
 
 
 def window_size(level):
     return level.width * TILE + PANEL_W, level.height * TILE + BAR_H
 
 
-def draw_map(screen, level, coins):
+def _pick(x, y, choices):
+    """Pick a variant by position, so the scenery looks varied but never flickers."""
+    return choices[(x * 31 + y * 17) % len(choices)]
+
+
+def draw_map(screen, level, coins, sprites):
     for y, row in enumerate(level.rows):
         for x, ch in enumerate(row):
-            rect = pygame.Rect(x * TILE, y * TILE, TILE, TILE)
-            pygame.draw.rect(screen, COLORS["wall"] if ch == "#" else COLORS["floor"], rect)
-            pygame.draw.rect(screen, COLORS["bg"], rect, 1)
-            if ch == "G":
-                pygame.draw.rect(screen, COLORS["goal"], rect.inflate(-8, -8), border_radius=6)
+            pos = (x * TILE, y * TILE)
+            if ch == "#":
+                screen.blit(sprites.town(_pick(x, y, [S.GRASS, S.GRASS, S.GRASS_TUFT, S.GRASS_FLOWERS])), pos)
+                screen.blit(sprites.town(_pick(x, y, [S.ROUND_TREE, S.PINE_TREE, S.ROUND_TREE, S.BUSH])), pos)
+            else:
+                screen.blit(sprites.town(_pick(x, y, [S.PATH, S.PATH, S.PATH, S.PATH_DOTS])), pos)
+                if ch == "G":
+                    screen.blit(sprites.town(S.SIGNPOST), pos)
     for (x, y) in coins:
-        pygame.draw.circle(screen, COLORS["coin"], (x * TILE + TILE // 2, y * TILE + TILE // 2), 9)
+        screen.blit(sprites.town(S.GOLD), (x * TILE, y * TILE))
 
 
-def draw_hero(screen, hero):
-    hx, hy = hero[0] * TILE, hero[1] * TILE
-    pygame.draw.rect(screen, COLORS["hero"], (hx + 7, hy + 7, TILE - 14, TILE - 14), border_radius=8)
-    pygame.draw.circle(screen, (255, 255, 255), (hx + 15, hy + 17), 3)
-    pygame.draw.circle(screen, (255, 255, 255), (hx + 25, hy + 17), 3)
+def draw_hero(screen, sprites, pos, facing, hop):
+    """pos is the hero's tile (can be between tiles while walking)."""
+    image = sprites.dungeon(S.HERO)
+    if facing == "left":
+        image = pygame.transform.flip(image, True, False)
+    screen.blit(image, (round(pos[0] * TILE), round(pos[1] * TILE) - hop))
 
 
 def draw_panel(screen, level, editor, code_font, ui_font):

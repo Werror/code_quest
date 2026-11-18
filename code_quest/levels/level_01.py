@@ -16,5 +16,5 @@ LEVEL_01 = Level(
         "#.##...#...#.G.#",
         "################",
     ],
-    starter_code="# Move the hero to the G!\nmove_down(2)\n",
+    starter_code="# Move the hero to the sign!\nmove_down(2)\n",
 )
