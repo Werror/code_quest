@@ -51,8 +51,29 @@ def draw_panel(screen, level, editor, code_font, ui_font):
         screen.blit(ui_font.render(t, True, COLORS["dim"]), (map_w + 12, map_h - 50 + i * 22))
 
 
-def draw_message_bar(screen, level, ui_font, message, color):
+def _wrap(text, font, max_width):
+    """Split text into lines that fit inside max_width pixels."""
+    lines, line = [], ""
+    for word in text.split(" "):
+        trial = f"{line} {word}".strip()
+        if line and font.size(trial)[0] > max_width:
+            lines.append(line)
+            line = word
+        else:
+            line = trial
+    lines.append(line)
+    return lines
+
+
+def draw_dialogue(screen, level, font, text, color):
+    """A Dragon Quest style text window: navy box, white double border."""
     win_w, _ = window_size(level)
     map_h = level.height * TILE
-    pygame.draw.rect(screen, (16, 18, 28), (0, map_h, win_w, BAR_H))
-    screen.blit(ui_font.render(message, True, color), (14, map_h + 18))
+    pygame.draw.rect(screen, COLORS["bg"], (0, map_h, win_w, BAR_H))   # clear behind the box
+    box = pygame.Rect(8, map_h + 8, win_w - 16, BAR_H - 16)
+    pygame.draw.rect(screen, (14, 22, 90), box, border_radius=6)
+    pygame.draw.rect(screen, (255, 255, 255), box, 3, border_radius=6)
+    pygame.draw.rect(screen, (255, 255, 255), box.inflate(-10, -10), 1, border_radius=4)
+    line_h = font.get_linesize()
+    for i, line in enumerate(_wrap(text, font, box.width - 40)[:3]):
+        screen.blit(font.render(line, True, color), (box.x + 20, box.y + 12 + i * line_h))

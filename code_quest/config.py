@@ -4,7 +4,8 @@ SRC_TILE = 16            # size of one tile in the art files, in pixels
 SCALE = 3                # how many times bigger we draw the pixels
 TILE = SRC_TILE * SCALE  # size of one tile on screen
 STEP_MS = 180            # how long the hero takes to walk one tile
-PANEL_W, BAR_H = 440, 60
+PANEL_W, BAR_H = 440, 96
+TYPE_CHARS_PER_SEC = 45  # speed of the dialogue box typewriter effect
 
 MAX_ACTIONS = 500        # stop runaway loops that make tons of moves
 MAX_LINES_RUN = 20000    # stop runaway loops like `while True: pass`

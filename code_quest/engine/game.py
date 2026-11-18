@@ -3,7 +3,7 @@ import math
 
 import pygame
 
-from ..config import COLORS, STEP_MS
+from ..config import COLORS, STEP_MS, TYPE_CHARS_PER_SEC
 from ..editor.editor import Editor
 from ..levels.level_01 import LEVEL_01
 from ..runner.runner import run_player_code
@@ -26,6 +26,7 @@ def main(level=LEVEL_01):
     facing = "down"
     coins = set(level.coins)
     queue, step_timer = [], 0
+    shown_message, typed = "", 0.0   # for the typewriter effect in the dialogue box
     message, message_color = "Write code, then press F5 to run it!", COLORS["text"]
     collected = 0
 
@@ -92,6 +93,11 @@ def main(level=LEVEL_01):
                     message = "Code finished, but you're not at the sign yet. Edit and try again!"
                     message_color = COLORS["text"]
 
+        # typewriter effect: start again whenever the message changes
+        if message != shown_message:
+            shown_message, typed = message, 0.0
+        typed += dt * TYPE_CHARS_PER_SEC / 1000
+
         screen.fill(COLORS["bg"])
         renderer.draw_map(screen, level, coins, sprites)
         # slide from the old tile to the new one, with a little hop on each step
@@ -102,7 +108,7 @@ def main(level=LEVEL_01):
         hop = round(abs(math.sin(progress * math.pi)) * 6) if moving else 0
         renderer.draw_hero(screen, sprites, pos, facing, hop)
         renderer.draw_panel(screen, level, editor, code_font, ui_font)
-        renderer.draw_message_bar(screen, level, ui_font, message, message_color)
+        renderer.draw_dialogue(screen, level, ui_font, message[:int(typed)], message_color)
         pygame.display.flip()
 
     pygame.quit()
