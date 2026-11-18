@@ -17,6 +17,13 @@ pip install -r requirements.txt
 python code_quest.py
 ```
 
+## Run the tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Controls
 
 - Type in the code box on the right.
