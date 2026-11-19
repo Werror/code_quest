@@ -47,8 +47,8 @@ code_quest/
 assets/                     Kenney Tiny Town + Tiny Dungeon (CC0)
 tests/                      runner, world, scenery, camera and level tests
 ```
-- **Trees are two tiles tall.** `Scenery` pairs wall tiles vertically into tall
-  trees, so walls in a level should be an even number of tiles thick.
+- **Trees:** `Scenery` mixes tall trees (two tiles stacked) with single-tile
+  trees and bushes, mostly single. Tall trees are always drawn complete.
 - **`runner/`, `world.py`, `scenery.py` and `camera.py` must never import pygame.** Keeps the
   command-queue rule honest and the tests fast.
 - **Levels are data.** Engine and world receive a `Level`; no global map.

@@ -24,8 +24,7 @@ def test_every_wall_tile_has_a_tree_and_no_open_tile_does():
         assert is_tree == LEVEL_01.is_wall(x, y), (x, y)
 
 
-def test_tall_trees_are_always_complete_two_tile_trees():
-    scenery = Scenery(LEVEL_01)
+def assert_no_half_trees(scenery):
     for (x, y), tile in scenery.objects.items():
         if tile in TOPS:
             assert scenery.objects.get((x, y + 1)) == TOPS[tile], f"tree top at {(x, y)} has no matching bottom"
@@ -34,10 +33,16 @@ def test_tall_trees_are_always_complete_two_tile_trees():
             assert top in TOPS and TOPS[top] == tile, f"tree bottom at {(x, y)} has no top"
 
 
-def test_there_are_tall_trees_and_a_few_small_fillers():
+def test_tall_trees_are_always_complete_two_tile_trees():
+    assert_no_half_trees(Scenery(LEVEL_01))
+
+
+def test_the_forest_has_both_kinds_but_more_single_tile_trees():
     tiles = list(Scenery(LEVEL_01).objects.values())
-    assert sum(t in TOPS for t in tiles) > 50
-    assert any(t in SMALL for t in tiles)
+    tall_trees = sum(t in TOPS for t in tiles)
+    single_trees = sum(t in SMALL for t in tiles)
+    assert tall_trees >= 10
+    assert single_trees > tall_trees
 
 
 def test_the_goal_gets_a_signpost_on_a_path():
@@ -46,10 +51,9 @@ def test_the_goal_gets_a_signpost_on_a_path():
     assert scenery.ground[LEVEL_01.goal] in (T.PATH, T.PATH_DOTS)
 
 
-def test_a_single_wall_tile_gets_a_small_tree_not_half_a_tall_one():
+def test_a_column_of_five_trees_never_leaves_half_a_tall_tree():
     from code_quest.levels.level import Level
-    level = Level("t", ["###", "#P#", "#G#", "#C#", "###"], "")   # column x=1 has 1 open tile... plus 2 walls around
+    level = Level("t", ["###", "#P#", "#G#", "#C#", "###"], "")   # column 0 is five walls tall
     scenery = Scenery(level)
-    # Column 0 is 5 walls tall: two tall trees (rows 0-1, 2-3) and one small tree (row 4).
-    assert scenery.objects[(0, 0)] in TOPS and scenery.objects[(0, 3)] in BOTTOMS
-    assert scenery.objects[(0, 4)] in SMALL
+    assert all((0, y) in scenery.objects for y in range(5))
+    assert_no_half_trees(scenery)
