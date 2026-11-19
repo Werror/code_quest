@@ -37,18 +37,32 @@ def draw_hero(screen, sprites, pos, facing, hop):
     screen.blit(image, (round(pos[0] * TILE), round(pos[1] * TILE) - hop))
 
 
-def draw_panel(screen, level, editor, code_font, ui_font):
+def draw_status(screen, font, wallet):
+    """The little GOLD box in the top-left corner, like an old RPG."""
+    box = pygame.Rect(8, 8, 150, 38)
+    pygame.draw.rect(screen, (14, 22, 90), box, border_radius=6)
+    pygame.draw.rect(screen, (255, 255, 255), box, 3, border_radius=6)
+    screen.blit(font.render(f"GOLD: {wallet}", True, COLORS["coin"]), (box.x + 14, box.y + 8))
+
+
+def draw_panel(screen, level, editor, code_font, ui_font, mode):
     map_w, map_h = level.width * TILE, level.height * TILE
     _, win_h = window_size(level)
-    pygame.draw.rect(screen, COLORS["panel"], pygame.Rect(map_w, 0, PANEL_W, win_h))
-    screen.blit(ui_font.render("Your code  (F5 = run, F6 = reset)", True, COLORS["dim"]), (map_w + 12, 10))
-    blink_on = (pygame.time.get_ticks() // 500) % 2 == 0
+    panel = pygame.Rect(map_w, 0, PANEL_W, win_h)
+    pygame.draw.rect(screen, COLORS["panel"], panel)
+    editing = mode == "edit"
+    if editing:
+        pygame.draw.rect(screen, COLORS["ok"], panel, 3)   # green frame = you are typing here
+    title = "Coin code: type here, F5 = start" if editing else "Playing! Esc = edit your code"
+    screen.blit(ui_font.render(title, True, COLORS["ok"] if editing else COLORS["dim"]), (map_w + 12, 10))
+    blink_on = editing and (pygame.time.get_ticks() // 500) % 2 == 0
     editor.draw(screen, code_font, map_w + 12, 40, blink_on)
 
-    help_lines = ["move_right(3)  move_left()  move_up()  move_down()",
-                  "for i in range(4):   if wall_ahead('right'):   say('hi')"]
+    help_lines = ["Use the variable: wallet",
+                  "say('hi') shows a message",
+                  "Arrows = walk   F5 = start   F6 = reset"]
     for i, t in enumerate(help_lines):
-        screen.blit(ui_font.render(t, True, COLORS["dim"]), (map_w + 12, map_h - 50 + i * 22))
+        screen.blit(ui_font.render(t, True, COLORS["dim"]), (map_w + 12, map_h - 72 + i * 22))
 
 
 def _wrap(text, font, max_width):

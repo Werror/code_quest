@@ -16,5 +16,8 @@ LEVEL_01 = Level(
         "#.##...#...#.G.#",
         "################",
     ],
-    starter_code="# Move the hero to the sign!\nmove_down(2)\n",
+    starter_code=(
+        "# Runs every time you get a coin.\n"
+        "# Make the wallet go up by 1!\n"
+    ),
 )

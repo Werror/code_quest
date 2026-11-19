@@ -24,13 +24,20 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-## Controls
+## How to play
 
-- Type in the code box on the right.
-- **F5** or **Ctrl+Enter**: run your code
-- **F6**: reset the level
+1. Type your **coin code** in the code box. In level 1, make `wallet` go up by 1.
+2. Press **F5**. If your code has a mistake, the game tells you. If not, the game starts.
+3. Walk with the **arrow keys**. Pick up the coins, then reach the sign.
+   Each coin runs your code, and the GOLD box shows your wallet.
 
-## Commands you can use
+| Key | What it does |
+| --- | --- |
+| F5 (or Ctrl+Enter) | Check your code and start the game |
+| Arrow keys | Walk (while playing) or move the text cursor (while editing) |
+| Esc | Stop playing and go back to editing |
+| F6 | Reset the level |
 
-`move_right(3)`, `move_left()`, `move_up()`, `move_down()`,
-`wall_ahead('right')`, `say('hi')`, plus `for` loops and `if`.
+## Activate the virtual environment first
+
+Each new terminal needs `source .venv/bin/activate` before `python main.py`.
