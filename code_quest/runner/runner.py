@@ -5,61 +5,102 @@ from ..config import MAX_LINES_RUN
 from .api import make_api
 from .errors import friendly_error, friendly_syntax_error
 
-SAFE_BUILTIN_NAMES = ("range", "len", "int", "str", "min", "max", "abs", "bool", "list")
+SAFE_BUILTIN_NAMES = ("range", "len", "int", "str", "min", "max", "abs", "bool", "list", "object")
+
+
+class CodeProblem(Exception):
+    """Something is missing from the player's code. The message is already friendly."""
 
 
 class RunResult:
-    def __init__(self, wallet):
-        self.events = []     # ("say", text) and, if all went well, ("wallet", number)
-        self.error = None    # friendly error string or None
-        self.wallet = wallet  # the wallet after the code ran (unchanged if there was an error)
+    def __init__(self, gold):
+        self.events = []      # ("say", text) and, if all went well, ("gold", number)
+        self.error = None     # friendly error string or None
+        self.gold = gold      # the gold after the code ran (unchanged if there was an error)
 
 
-def run_coin_code(source, wallet):
-    """Run the player's coin code once, as if one coin was just picked up.
+def _check_gold(value):
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise CodeProblem(f"wallet.gold should be a whole number, but it is {value!r}")
 
-    The code starts with a variable called `wallet` already set to the current
-    amount. Whatever `wallet` is when the code finishes is the new amount. We
-    only record what happened; the game plays it back afterwards.
+
+class CoinSession:
+    """The player's `Wallet` object, kept alive from coin to coin.
+
+    Creating a session runs the player's code once (that defines `class Wallet`)
+    and makes one Wallet. Each coin then calls wallet.add_coin(). Everything
+    the player's code does is only *recorded* as events; the game plays them
+    back afterwards (the command-queue rule).
 
     NOTE: restricted builtins stop accidents, not determined hackers.
     Fine for a classroom/home game; use a subprocess sandbox if you ever
     run other people's code on a server.
     """
-    result = RunResult(wallet)
-    safe_builtins = {name: getattr(builtins, name) for name in SAFE_BUILTIN_NAMES}
-    env = {"__builtins__": safe_builtins, "wallet": wallet, **make_api(result.events)}
 
-    count = 0
+    def __init__(self, source):
+        self._events = []
+        safe_builtins = {name: getattr(builtins, name) for name in SAFE_BUILTIN_NAMES}
+        safe_builtins["__build_class__"] = builtins.__build_class__   # lets `class` work
+        self._env = {"__builtins__": safe_builtins, "__name__": "player_code", **make_api(self._events)}
+        self.wallet = None
+        self.gold = 0
+        self.setup_error = self._guarded(lambda: self._setup(source))
 
-    def tracer(frame, event, arg):
-        nonlocal count
-        if frame.f_code.co_filename != "<hero>":
-            return None
-        if event == "line":
-            count += 1
-            if count > MAX_LINES_RUN:
-                raise TimeoutError("Your code ran for too long. Is a loop never ending?")
-        return tracer
+    def _setup(self, source):
+        exec(compile(source, "<hero>", "exec"), self._env)
+        wallet_class = self._env.get("Wallet")
+        if not isinstance(wallet_class, type):
+            raise CodeProblem("I can't find your `class Wallet`. Did you delete it?")
+        self.wallet = wallet_class()
+        if not callable(getattr(self.wallet, "add_coin", None)):
+            raise CodeProblem("Your Wallet needs a method called add_coin(self).")
+        _check_gold(getattr(self.wallet, "gold", None))
+        self.gold = self.wallet.gold
 
-    try:
-        code = compile(source, "<hero>", "exec")
-        sys.settrace(tracer)
+    def _guarded(self, action):
+        """Run action() with a line limit. Returns a friendly error string or None."""
+        count = 0
+
+        def tracer(frame, event, arg):
+            nonlocal count
+            if frame.f_code.co_filename != "<hero>":
+                return None
+            if event == "line":
+                count += 1
+                if count > MAX_LINES_RUN:
+                    raise TimeoutError("Your code ran for too long. Is a loop never ending?")
+            return tracer
+
         try:
-            exec(code, env)
-        finally:
-            sys.settrace(None)
-    except SyntaxError as e:
-        result.error = friendly_syntax_error(e)
-        return result
-    except Exception as e:  # noqa: BLE001 - we want to show every error nicely
-        result.error = friendly_error(e)
-        return result
+            sys.settrace(tracer)
+            try:
+                action()
+            finally:
+                sys.settrace(None)
+        except CodeProblem as e:
+            return str(e)
+        except SyntaxError as e:
+            return friendly_syntax_error(e)
+        except Exception as e:  # noqa: BLE001 - we want to show every error nicely
+            return friendly_error(e)
+        return None
 
-    new_wallet = env.get("wallet")
-    if isinstance(new_wallet, bool) or not isinstance(new_wallet, int):
-        result.error = f"Your wallet should be a whole number, but it is {new_wallet!r}"
+    def pick_up_coin(self):
+        """Call wallet.add_coin() once and record what happened."""
+        result = RunResult(self.gold)
+        if self.setup_error:
+            result.error = self.setup_error
+            return result
+        del self._events[:]
+
+        def add_coin_and_check():
+            self.wallet.add_coin()
+            _check_gold(getattr(self.wallet, "gold", None))
+
+        result.error = self._guarded(add_coin_and_check)
+        result.events = list(self._events)
+        if result.error is None:
+            self.gold = self.wallet.gold
+            result.gold = self.gold
+            result.events.append(("gold", self.gold))
         return result
-    result.wallet = new_wallet
-    result.events.append(("wallet", new_wallet))
-    return result

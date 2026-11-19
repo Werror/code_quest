@@ -26,10 +26,10 @@ pytest
 
 ## How to play
 
-1. Type your **coin code** in the code box. In level 1, make `wallet` go up by 1.
+1. In the code box, finish the `Wallet` object. In level 1, make `add_coin()` add 1 to `self.gold`.
 2. Press **F5**. If your code has a mistake, the game tells you. If not, the game starts.
 3. Walk with the **arrow keys**. Pick up the coins, then reach the sign.
-   Each coin runs your code, and the GOLD box shows your wallet.
+   Each coin calls your `wallet.add_coin()`, and the GOLD box shows `wallet.gold`.
 
 | Key | What it does |
 | --- | --- |

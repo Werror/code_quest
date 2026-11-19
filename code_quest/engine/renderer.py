@@ -37,12 +37,12 @@ def draw_hero(screen, sprites, pos, facing, hop):
     screen.blit(image, (round(pos[0] * TILE), round(pos[1] * TILE) - hop))
 
 
-def draw_status(screen, font, wallet):
+def draw_status(screen, font, gold):
     """The little GOLD box in the top-left corner, like an old RPG."""
     box = pygame.Rect(8, 8, 150, 38)
     pygame.draw.rect(screen, (14, 22, 90), box, border_radius=6)
     pygame.draw.rect(screen, (255, 255, 255), box, 3, border_radius=6)
-    screen.blit(font.render(f"GOLD: {wallet}", True, COLORS["coin"]), (box.x + 14, box.y + 8))
+    screen.blit(font.render(f"GOLD: {gold}", True, COLORS["coin"]), (box.x + 14, box.y + 8))
 
 
 def draw_panel(screen, level, editor, code_font, ui_font, mode):
@@ -58,7 +58,7 @@ def draw_panel(screen, level, editor, code_font, ui_font, mode):
     blink_on = editing and (pygame.time.get_ticks() // 500) % 2 == 0
     editor.draw(screen, code_font, map_w + 12, 40, blink_on)
 
-    help_lines = ["Use the variable: wallet",
+    help_lines = ["Fill in add_coin() in your Wallet",
                   "say('hi') shows a message",
                   "Arrows = walk   F5 = start   F6 = reset"]
     for i, t in enumerate(help_lines):

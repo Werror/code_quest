@@ -17,11 +17,17 @@ LEVEL_01 = Level(
         "################",
     ],
     starter_code=(
-        "# INPUT:  wallet = gold you have\n"
-        "# OUTPUT: wallet = gold after coin\n"
-        "# This runs once for every coin.\n"
-        "# Goal: each coin adds 1 gold.\n"
+        "# The game calls wallet.add_coin()\n"
+        "# every time you pick up a coin.\n"
+        "# The GOLD box shows wallet.gold.\n"
         "\n"
-        "wallet = wallet   # <- change me"
+        "class Wallet:\n"
+        "    def __init__(self):\n"
+        "        self.gold = 0\n"
+        "\n"
+        "    def add_coin(self):\n"
+        "        # self.gold = gold you have\n"
+        "        # Change it: +1 per coin\n"
+        "        pass   # <- replace me"
     ),
 )

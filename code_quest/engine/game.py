@@ -4,8 +4,8 @@ Two modes:
   "edit" - the arrow keys move the text cursor in the code box.
   "play" - the arrow keys walk the hero. F5 starts it, Esc goes back to editing.
 
-When the hero picks up a coin, the player's code is run on a *simulated*
-wallet. It only records events; the loop plays them back one at a time.
+When the hero picks up a coin, we call add_coin() on the player's own Wallet
+object. It only records events; the loop plays them back one at a time.
 """
 import math
 
@@ -14,7 +14,7 @@ import pygame
 from ..config import COLORS, EVENT_MS, STEP_MS, TYPE_CHARS_PER_SEC
 from ..editor.editor import Editor
 from ..levels.level_01 import LEVEL_01
-from ..runner.runner import run_coin_code
+from ..runner.runner import CoinSession
 from . import renderer
 from .sprites import Sprites
 from .world import World
@@ -39,7 +39,8 @@ def main(level=LEVEL_01):
 
     mode = "edit"
     loaded_code = ""              # the code that was running when F5 was pressed
-    wallet = 0                    # what the player's code has made the wallet into
+    session = None                # holds the player's Wallet object while playing
+    gold = 0                      # the gold shown in the GOLD box
     hero_before = list(world.hero)  # where the hero was one step ago (for smooth walking)
     facing = "down"
     moving, walk_timer, arriving = False, 0, False
@@ -50,9 +51,10 @@ def main(level=LEVEL_01):
     message, message_color = "Write your coin code, then press F5 to start the game!", COLORS["text"]
 
     def reset_world(text):
-        nonlocal wallet, hero_before, facing, moving, arriving, queue, level_done, message, message_color
+        nonlocal session, gold, hero_before, facing, moving, arriving, queue, level_done, message, message_color
         world.reset()
-        wallet, hero_before, facing = 0, list(world.hero), "down"
+        session = CoinSession(loaded_code) if loaded_code else None   # a brand new Wallet()
+        gold, hero_before, facing = 0, list(world.hero), "down"
         moving, arriving, queue, level_done = False, False, [], False
         held.clear()
         message, message_color = text, COLORS["text"]
@@ -60,9 +62,10 @@ def main(level=LEVEL_01):
     def start_game():
         """F5: test the code once, and if it works, start playing with it."""
         nonlocal mode, loaded_code, message, message_color
-        trial = run_coin_code(editor.text, 0)
-        if trial.error:
-            message, message_color = trial.error, COLORS["err"]
+        trial = CoinSession(editor.text)
+        error = trial.setup_error or trial.pick_up_coin().error   # try one pretend coin
+        if error:
+            message, message_color = error, COLORS["err"]
             return
         loaded_code = editor.text
         mode = "play"
@@ -73,24 +76,24 @@ def main(level=LEVEL_01):
         nonlocal queue, event_timer
         if world.pick_up_coin():
             queue.append(("coin",))
-            result = run_coin_code(loaded_code, wallet)   # only simulates, changes nothing real
+            result = session.pick_up_coin()   # only simulates, changes nothing real
             queue.extend(result.events)
             if result.error:
                 queue.append(("error", result.error))
-            elif result.wallet == wallet:
-                queue.append(("hint", "Hmm, your wallet did not change. Did your code change `wallet`?"))
+            elif result.gold == gold:
+                queue.append(("hint", "Hmm, your gold did not change. Did add_coin() change self.gold?"))
         if world.at_goal():
             queue.append(("finish",))
         event_timer = EVENT_MS   # show the first message straight away
 
     def play_event(ev):
-        nonlocal wallet, level_done, message, message_color
+        nonlocal gold, level_done, message, message_color
         kind = ev[0]
         if kind == "coin":
             message, message_color = "You picked up a coin!", COLORS["coin"]
-        elif kind == "wallet":
-            wallet = ev[1]
-            message, message_color = f"Your wallet now has {wallet} gold.", COLORS["coin"]
+        elif kind == "gold":
+            gold = ev[1]
+            message, message_color = f"Your wallet now has {gold} gold.", COLORS["coin"]
         elif kind == "say":
             message, message_color = ev[1], COLORS["text"]
         elif kind in ("error", "hint"):
@@ -100,12 +103,12 @@ def main(level=LEVEL_01):
             if got < total:
                 message = f"You found the sign, but {total - got} coin(s) are still out there. Go get them!"
                 message_color = COLORS["text"]
-            elif wallet != got:
-                message = (f"You picked up {got} coins but your wallet has {wallet}. "
-                           "Check your coin code (Esc), then press F5!")
+            elif gold != got:
+                message = (f"You picked up {got} coins but your wallet has {gold}. "
+                           "Check your add_coin code (Esc), then press F5!")
                 message_color = COLORS["err"]
             else:
-                message = f"LEVEL COMPLETE! Your coin code works: {wallet} gold!"
+                message = f"LEVEL COMPLETE! Your Wallet works: {gold} gold!"
                 message_color = COLORS["ok"]
                 level_done = True
 
@@ -171,7 +174,7 @@ def main(level=LEVEL_01):
                hero_before[1] + (world.hero[1] - hero_before[1]) * progress)
         hop = round(abs(math.sin(progress * math.pi)) * 6) if moving else 0
         renderer.draw_hero(screen, sprites, pos, facing, hop)
-        renderer.draw_status(screen, ui_font, wallet)
+        renderer.draw_status(screen, ui_font, gold)
         renderer.draw_panel(screen, level, editor, code_font, ui_font, mode)
         renderer.draw_dialogue(screen, level, ui_font, message[:int(typed)], message_color)
         pygame.display.flip()

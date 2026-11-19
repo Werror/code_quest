@@ -16,10 +16,14 @@ code tells the hero what to do.
   **edit** (arrows move the text cursor) and **play** (arrows walk the hero).
 - **F5** checks the code once, and if it works, starts the game with it.
   **Esc** goes back to editing. **F6** resets the level.
-- The code box holds the rule for an item. Level 1 is the coin: the code runs
-  each time a coin is picked up, with a variable `wallet` already set to the
-  current amount. The player writes `wallet = wallet + 1`. The GOLD box shows
-  the wallet. Reaching the sign checks that the wallet matches the coins taken.
+- The code box holds an **object** for the item. Level 1 is the coin: the
+  starter code has a stubbed `class Wallet` (with `self.gold` and an empty
+  `add_coin(self)`). The game makes one `Wallet()` when F5 is pressed and calls
+  `wallet.add_coin()` each time a coin is picked up. The player fills in
+  `self.gold = self.gold + 1`. The GOLD box shows `wallet.gold`. Reaching the
+  sign checks that the gold matches the coins taken.
+- Each new item should likewise be a small class with stubbed methods, so the
+  player learns object-oriented Python from the start.
 - More items (doors, NPCs, chests...) will each get their own exercise.
 
 ## Architecture
@@ -31,7 +35,7 @@ code_quest/
   engine/world.py           hero position, coins, walking rules (no pygame)
   engine/renderer.py        all drawing (never changes game state)
   engine/sprites.py         loads and scales the pixel art
-  runner/runner.py          run_coin_code(source, wallet) -> RunResult
+  runner/runner.py          CoinSession: holds the player's Wallet object
   runner/api.py             commands the player's code can call (say, print)
   runner/errors.py          Python errors -> friendly messages
   editor/editor.py          the in-game code editor widget
@@ -47,11 +51,11 @@ tests/                      test_runner.py, test_world.py
   limit stop infinite loops. They stop accidents, not determined attackers.
 
 ## The command-queue rule (core design, keep it)
-The player's code **never** touches the real game or the screen. It runs
-against *simulated* values (e.g. a copy of the wallet) and only appends
-events to a list: `("say", text)`, `("wallet", number)`. The game loop plays
-those events back one at a time. New items must follow this: simulate, record
-events, animate later. The real wallet only changes when the event is played.
+The player's code **never** touches the real game or the screen. It runs in
+its own sandbox (the player's `Wallet` object lives in a `CoinSession`) and only
+appends events to a list: `("say", text)`, `("gold", number)`. The game loop
+plays those events back one at a time. New items must follow this: simulate,
+record events, animate later. The GOLD box only changes when the event is played.
 
 ## Working rules
 - Small commits with clear messages.
