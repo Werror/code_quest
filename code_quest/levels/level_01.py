@@ -17,7 +17,11 @@ LEVEL_01 = Level(
         "################",
     ],
     starter_code=(
-        "# Runs every time you get a coin.\n"
-        "# Make the wallet go up by 1!\n"
+        "# INPUT:  wallet = gold you have\n"
+        "# OUTPUT: wallet = gold after coin\n"
+        "# This runs once for every coin.\n"
+        "# Goal: each coin adds 1 gold.\n"
+        "\n"
+        "wallet = wallet   # <- change me"
     ),
 )
