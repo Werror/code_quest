@@ -5,6 +5,8 @@ SCALE = 3                # how many times bigger we draw the pixels
 TILE = SRC_TILE * SCALE  # size of one tile on screen
 STEP_MS = 160            # how long the hero takes to walk one tile
 EVENT_MS = 600           # how long each message from the player's code stays on screen
+VIEW_COLS, VIEW_ROWS = 16, 12   # how many tiles you can see at once (the camera follows the hero)
+VIEW_W, VIEW_H = VIEW_COLS * TILE, VIEW_ROWS * TILE
 PANEL_W, BAR_H = 440, 96
 TYPE_CHARS_PER_SEC = 60  # speed of the dialogue box typewriter effect
 

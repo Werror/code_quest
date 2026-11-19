@@ -35,6 +35,9 @@ code_quest/
   engine/world.py           hero position, coins, walking rules (no pygame)
   engine/renderer.py        all drawing (never changes game state)
   engine/sprites.py         loads and scales the pixel art
+  engine/tiles.py           which tile number is which in the art packs
+  engine/scenery.py         picks the picture for every map tile (tall trees, etc.)
+  engine/camera.py          follows the hero; the map is bigger than the window
   runner/runner.py          CoinSession: holds the player's Wallet object
   runner/api.py             commands the player's code can call (say, print)
   runner/errors.py          Python errors -> friendly messages
@@ -42,9 +45,11 @@ code_quest/
   levels/level.py           Level class (map, start, goal, coins, starter code)
   levels/level_01.py        level data
 assets/                     Kenney Tiny Town + Tiny Dungeon (CC0)
-tests/                      test_runner.py, test_world.py
+tests/                      runner, world, scenery, camera and level tests
 ```
-- **`runner/` and `world.py` must never import pygame.** Keeps the
+- **Trees are two tiles tall.** `Scenery` pairs wall tiles vertically into tall
+  trees, so walls in a level should be an even number of tiles thick.
+- **`runner/`, `world.py`, `scenery.py` and `camera.py` must never import pygame.** Keeps the
   command-queue rule honest and the tests fast.
 - **Levels are data.** Engine and world receive a `Level`; no global map.
 - **Safety:** restricted builtins, a `sys.settrace` line limit and a message

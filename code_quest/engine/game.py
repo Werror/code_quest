@@ -16,6 +16,8 @@ from ..editor.editor import Editor
 from ..levels.level_01 import LEVEL_01
 from ..runner.runner import CoinSession
 from . import renderer
+from .camera import camera_origin
+from .scenery import Scenery
 from .sprites import Sprites
 from .world import World
 
@@ -27,7 +29,7 @@ ARROWS = {
 
 def main(level=LEVEL_01):
     pygame.init()
-    screen = pygame.display.set_mode(renderer.window_size(level))
+    screen = pygame.display.set_mode(renderer.window_size())
     pygame.display.set_caption("Code Quest")
     clock = pygame.time.Clock()
     code_font = pygame.font.SysFont("consolas,menlo,dejavusansmono,monospace", 18)
@@ -35,6 +37,7 @@ def main(level=LEVEL_01):
 
     sprites = Sprites()
     world = World(level)
+    scenery = Scenery(level)
     editor = Editor(level.starter_code)
 
     mode = "edit"
@@ -167,16 +170,17 @@ def main(level=LEVEL_01):
         typed += dt * TYPE_CHARS_PER_SEC / 1000
 
         screen.fill(COLORS["bg"])
-        renderer.draw_map(screen, level, world.coins, sprites)
         # slide from the old tile to the new one, with a little hop on each step
         progress = min(1.0, walk_timer / STEP_MS) if moving else 1.0
         pos = (hero_before[0] + (world.hero[0] - hero_before[0]) * progress,
                hero_before[1] + (world.hero[1] - hero_before[1]) * progress)
         hop = round(abs(math.sin(progress * math.pi)) * 6) if moving else 0
-        renderer.draw_hero(screen, sprites, pos, facing, hop)
+        cam = camera_origin(pos, level.width, level.height)
+        renderer.draw_map(screen, level, scenery, world.coins, sprites, cam)
+        renderer.draw_hero(screen, sprites, pos, facing, hop, cam)
         renderer.draw_status(screen, ui_font, gold)
-        renderer.draw_panel(screen, level, editor, code_font, ui_font, mode)
-        renderer.draw_dialogue(screen, level, ui_font, message[:int(typed)], message_color)
+        renderer.draw_panel(screen, editor, code_font, ui_font, mode)
+        renderer.draw_dialogue(screen, ui_font, message[:int(typed)], message_color)
         pygame.display.flip()
 
     pygame.quit()

@@ -13,15 +13,6 @@ from ..config import SCALE, SRC_TILE
 ASSETS = Path(__file__).resolve().parents[2] / "assets"
 SHEET_COLUMNS, SHEET_ROWS = 12, 11
 
-# Tile numbers inside the Tiny Town pack (count left to right, top to bottom).
-GRASS, GRASS_TUFT, GRASS_FLOWERS = 0, 1, 2
-PINE_TREE, ROUND_TREE, BUSH = 4, 16, 5
-PATH, PATH_DOTS = 25, 41
-SIGNPOST, GOLD = 83, 93
-
-# Tile numbers inside the Tiny Dungeon pack.
-HERO = 85
-
 
 def _load_sheet(pack):
     """Return a list with every tile of a pack, already scaled up."""
