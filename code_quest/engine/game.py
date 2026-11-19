@@ -39,6 +39,7 @@ class Game:
         self.sprites = Sprites()
         self.levels = levels
         self.running = True
+        pygame.key.start_text_input()   # typed characters arrive as TEXTINPUT events
         self.load_level(0)
 
     # ------------------------------------------------------------------ levels
@@ -176,6 +177,9 @@ class Game:
         elif event.type == pygame.KEYUP:
             if event.key in self.held:
                 self.held.remove(event.key)
+        elif event.type == pygame.TEXTINPUT:
+            if self.mode == "edit":
+                self.editor.handle_text(event.text)
         elif event.type == pygame.KEYDOWN:
             self.handle_keydown(event)
 

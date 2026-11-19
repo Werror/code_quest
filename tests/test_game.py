@@ -131,3 +131,15 @@ def test_arrow_keys_move_the_cursor_while_editing_and_the_hero_while_playing():
     game.update(16)
     assert game.world.hero == [start[0], start[1] + 1]
     pygame.quit()
+
+
+def test_typed_digits_reach_the_editor_but_only_while_editing():
+    game = Game(LEVELS)
+    game.editor.lines, game.editor.row, game.editor.col = [""], 0, 0
+    for ch in "5 + 10":
+        game.handle_event(pygame.event.Event(pygame.TEXTINPUT, text=ch))
+    assert game.editor.text == "5 + 10"
+    game.mode = "play"
+    game.handle_event(pygame.event.Event(pygame.TEXTINPUT, text="9"))
+    assert game.editor.text == "5 + 10"          # playing: the code box ignores typing
+    pygame.quit()

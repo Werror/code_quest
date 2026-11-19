@@ -16,7 +16,10 @@ def press(editor, key, char=""):
 
 def type_text(editor, text):
     for ch in text:
-        press(editor, pygame.K_RETURN, "\r") if ch == "\n" else press(editor, pygame.K_a, ch)
+        if ch == "\n":
+            press(editor, pygame.K_RETURN, "\r")
+        else:
+            editor.handle_text(ch)
 
 
 def test_typing_adds_characters_at_the_cursor():
@@ -86,3 +89,23 @@ def test_the_dictionary_line_the_sign_suggests_can_be_typed():
     line = "VALUES = {'normal': 1, 'red': 5, 'sapphire': 10}"
     type_text(editor, line)
     assert editor.text == line
+
+
+def test_digits_and_symbols_can_be_typed():
+    editor = Editor("")
+    type_text(editor, "self.gold = self.gold + 10  # 5 (x) [y] {z}")
+    assert editor.text == "self.gold = self.gold + 10  # 5 (x) [y] {z}"
+
+
+def test_typing_in_the_middle_of_a_line_inserts_there():
+    editor = Editor("wallet = 0")
+    editor.col = len("wallet = ")
+    editor.row = 0
+    editor.handle_text("1")
+    assert editor.text == "wallet = 10"
+
+
+def test_several_characters_at_once_from_an_input_method_all_arrive():
+    editor = Editor("")
+    editor.handle_text("123")
+    assert editor.text == "123"

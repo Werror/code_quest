@@ -65,9 +65,14 @@ class Editor:
             self.col = 0
         elif event.key == pygame.K_END:
             self.col = len(L[r])
-        elif event.unicode and event.unicode.isprintable():
-            if len(L[r]) < MAX_EDITOR_COLS:   # no room left on this line: ignore the key
-                L[r] = L[r][:c] + event.unicode + L[r][c:]
+
+    def handle_text(self, text):
+        """Typed characters (letters, digits, symbols). They arrive from pygame's
+        TEXTINPUT event, which works with every keyboard layout and input method."""
+        for ch in text:
+            line = self.lines[self.row]
+            if ch.isprintable() and len(line) < MAX_EDITOR_COLS:   # no room left: ignore the key
+                self.lines[self.row] = line[:self.col] + ch + line[self.col:]
                 self.col += 1
 
     def draw(self, surf, font, x0, y0, blink_on):
