@@ -53,7 +53,7 @@ def test_the_goal_gets_a_signpost_on_a_path():
 
 def test_a_column_of_five_trees_never_leaves_half_a_tall_tree():
     from code_quest.levels.level import Level
-    level = Level("t", ["###", "#P#", "#G#", "#C#", "###"], "")   # column 0 is five walls tall
+    level = Level("t", "", ["###", "#P#", "#G#", "#C#", "###"], "")   # column 0 is five walls tall
     scenery = Scenery(level)
     assert all((0, y) in scenery.objects for y in range(5))
     assert_no_half_trees(scenery)

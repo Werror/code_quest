@@ -1,19 +1,21 @@
-"""The main game loop.
+"""The game itself: one Game object that owns the window, the current level and
+everything that changes while you play.
 
 Two modes:
   "edit" - the arrow keys move the text cursor in the code box.
   "play" - the arrow keys walk the hero. F5 starts it, Esc goes back to editing.
 
 When the hero picks up a coin, we call add_coin() on the player's own Wallet
-object. It only records events; the loop plays them back one at a time.
+object. It only records events; update() plays them back one at a time.
 """
 import math
 
 import pygame
 
-from ..config import COLORS, EVENT_MS, STEP_MS, TYPE_CHARS_PER_SEC
+from ..config import CODE_FONT_NAMES, CODE_FONT_SIZE, COLORS, EVENT_MS, STEP_MS, TYPE_CHARS_PER_SEC
 from ..editor.editor import Editor
-from ..levels.level_01 import LEVEL_01
+from ..levels import LEVELS
+from ..runner.review import CoinLog, review_code
 from ..runner.runner import CoinSession
 from . import renderer
 from .camera import camera_origin
@@ -27,160 +29,216 @@ ARROWS = {
 }
 
 
-def main(level=LEVEL_01):
-    pygame.init()
-    screen = pygame.display.set_mode(renderer.window_size())
-    pygame.display.set_caption("Code Quest")
-    clock = pygame.time.Clock()
-    code_font = pygame.font.SysFont("consolas,menlo,dejavusansmono,monospace", 18)
-    ui_font = pygame.font.SysFont("arial,helvetica,sans", 18)
+class Game:
+    def __init__(self, levels=LEVELS):
+        pygame.init()
+        self.screen = pygame.display.set_mode(renderer.window_size())
+        self.clock = pygame.time.Clock()
+        self.code_font = pygame.font.SysFont(CODE_FONT_NAMES, CODE_FONT_SIZE)
+        self.ui_font = pygame.font.SysFont("arial,helvetica,sans", 18)
+        self.sprites = Sprites()
+        self.levels = levels
+        self.running = True
+        self.load_level(0)
 
-    sprites = Sprites()
-    world = World(level)
-    scenery = Scenery(level)
-    editor = Editor(level.starter_code)
+    # ------------------------------------------------------------------ levels
+    def load_level(self, index):
+        self.level_index = index
+        self.level = self.levels[index]
+        pygame.display.set_caption(f"Code Quest - {self.level.name}")
+        self.world = World(self.level)
+        self.scenery = Scenery(self.level)
+        self.editor = Editor(self.level.starter_code)
+        self.mode = "edit"
+        self.loaded_code = ""        # the code that was running when F5 was pressed
+        self.reset_world(self.level.intro)
 
-    mode = "edit"
-    loaded_code = ""              # the code that was running when F5 was pressed
-    session = None                # holds the player's Wallet object while playing
-    gold = 0                      # the gold shown in the GOLD box
-    hero_before = list(world.hero)  # where the hero was one step ago (for smooth walking)
-    facing = "down"
-    moving, walk_timer, arriving = False, 0, False
-    held = []                     # arrow keys currently held down, most recent last
-    queue, event_timer = [], 0    # events recorded from the player's code, played back slowly
-    level_done = False
-    shown_message, typed = "", 0.0  # for the typewriter effect in the dialogue box
-    message, message_color = "Write your coin code, then press F5 to start the game!", COLORS["text"]
+    def has_next_level(self):
+        return self.level_index + 1 < len(self.levels)
 
-    def reset_world(text):
-        nonlocal session, gold, hero_before, facing, moving, arriving, queue, level_done, message, message_color
-        world.reset()
-        session = CoinSession(loaded_code) if loaded_code else None   # a brand new Wallet()
-        gold, hero_before, facing = 0, list(world.hero), "down"
-        moving, arriving, queue, level_done = False, False, [], False
-        held.clear()
-        message, message_color = text, COLORS["text"]
+    def reset_world(self, text):
+        """Put the hero, coins and gold back to the start (the player's code stays)."""
+        self.world.reset()
+        # a brand new Wallet() for the player's code
+        self.session = (CoinSession(self.loaded_code, self.level.passes_color)
+                        if self.loaded_code else None)
+        self.gold = 0                       # the number in the GOLD box
+        self.hero_before = list(self.world.hero)   # where the hero was one step ago (smooth walking)
+        self.facing = "down"
+        self.moving, self.walk_timer, self.arriving = False, 0, False
+        self.held = []                      # arrow keys currently held down, most recent last
+        self.queue, self.event_timer = [], 0   # events recorded from the player's code
+        self.coin_log = []                  # what the Wallet did for each coin (for the sign)
+        self.level_done = False
+        self.pages, self.page_index, self.reading, self.review_passed = [], 0, False, False
+        self.shown_message, self.typed = "", 0.0   # for the typewriter effect
+        self.say(text)
 
-    def start_game():
-        """F5: test the code once, and if it works, start playing with it."""
-        nonlocal mode, loaded_code, message, message_color
-        trial = CoinSession(editor.text)
-        error = trial.setup_error or trial.pick_up_coin().error   # try one pretend coin
+    def say(self, text, color=None):
+        self.message = text
+        self.message_color = color or COLORS["text"]
+
+    # ---------------------------------------------------------------- starting
+    def start_game(self):
+        """F5: try the code with a pretend coin of every color, and if it works, start playing."""
+        trial = CoinSession(self.editor.text, self.level.passes_color)
+        error = trial.setup_error
+        if not error:
+            for color in self.level.coin_values:
+                error = trial.pick_up_coin(color).error
+                if error:
+                    break
         if error:
-            message, message_color = error, COLORS["err"]
+            self.say(error, COLORS["err"])
             return
-        loaded_code = editor.text
-        mode = "play"
-        reset_world("Game started! Walk with the arrow keys. (Esc = edit your code)")
+        self.loaded_code = self.editor.text
+        self.mode = "play"
+        self.reset_world("Game started! Walk with the arrow keys. (Esc = edit your code)")
 
-    def handle_arrival():
+    # ------------------------------------------------------------ game events
+    def handle_arrival(self):
         """The hero just finished walking onto a new tile."""
-        nonlocal queue, event_timer
-        if world.pick_up_coin():
-            queue.append(("coin",))
-            result = session.pick_up_coin()   # only simulates, changes nothing real
-            queue.extend(result.events)
+        color = self.world.pick_up_coin()
+        if color:
+            self.queue.append(("coin", color))
+            result = self.session.pick_up_coin(color)   # only simulates, changes nothing real
+            self.coin_log.append(CoinLog(color, self.level.coin_values[color],
+                                         result.gold - self.gold, result.error))
+            self.queue.extend(result.events)
             if result.error:
-                queue.append(("error", result.error))
-            elif result.gold == gold:
-                queue.append(("hint", "Hmm, your gold did not change. Did add_coin() change self.gold?"))
-        if world.at_goal():
-            queue.append(("finish",))
-        event_timer = EVENT_MS   # show the first message straight away
+                self.queue.append(("error", result.error))
+            elif result.gold == self.gold:
+                self.queue.append(("hint", "Hmm, your gold did not change. Did add_coin() change self.gold?"))
+        if self.world.at_goal():
+            self.queue.append(("finish",))
+        self.event_timer = EVENT_MS   # show the first message straight away
 
-    def play_event(ev):
-        nonlocal gold, level_done, message, message_color
+    def play_event(self, ev):
+        """Show one thing the player's code (or the game) recorded."""
         kind = ev[0]
         if kind == "coin":
-            message, message_color = "You picked up a coin!", COLORS["coin"]
+            self.say(f"You picked up a {ev[1]} coin!", COLORS["coin"])
         elif kind == "gold":
-            gold = ev[1]
-            message, message_color = f"Your wallet now has {gold} gold.", COLORS["coin"]
+            self.gold = ev[1]
+            self.say(f"Your wallet now has {self.gold} gold.", COLORS["coin"])
         elif kind == "say":
-            message, message_color = ev[1], COLORS["text"]
+            self.say(ev[1])
         elif kind in ("error", "hint"):
-            message, message_color = ev[1], COLORS["err"]
+            self.say(ev[1], COLORS["err"])
         elif kind == "finish":
-            total, got = len(level.coins), world.collected
-            if got < total:
-                message = f"You found the sign, but {total - got} coin(s) are still out there. Go get them!"
-                message_color = COLORS["text"]
-            elif gold != got:
-                message = (f"You picked up {got} coins but your wallet has {gold}. "
-                           "Check your add_coin code (Esc), then press F5!")
-                message_color = COLORS["err"]
-            else:
-                message = f"LEVEL COMPLETE! Your Wallet works: {gold} gold!"
-                message_color = COLORS["ok"]
-                level_done = True
+            self.read_the_sign()
 
-    running = True
-    while running:
-        dt = clock.tick(60)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYUP:
-                if event.key in held:
-                    held.remove(event.key)
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_F5 or (
-                    event.key == pygame.K_RETURN and event.mod & pygame.KMOD_CTRL
-                ):
-                    start_game()
-                elif event.key == pygame.K_F6:
-                    reset_world("Level reset. Press F5 to start the game!" if mode == "edit"
-                                else "Level reset. Walk with the arrow keys!")
-                elif mode == "edit":
-                    editor.handle_key(event)
-                elif event.key == pygame.K_ESCAPE:
-                    mode = "edit"
-                    held.clear()
-                    message, message_color = "Editing. Press F5 to start again with your new code.", COLORS["text"]
-                elif event.key in ARROWS:
-                    held.append(event.key)
+    def read_the_sign(self):
+        review = review_code(self.level, self.loaded_code, self.coin_log,
+                             self.world.collected, self.has_next_level())
+        self.pages, self.page_index, self.reading = review.pages, 0, True
+        self.review_passed = review.passed
+        self.show_page()
 
+    def show_page(self):
+        good = self.review_passed and self.page_index == 0
+        self.say(self.pages[self.page_index], COLORS["ok"] if good else COLORS["text"])
+
+    def advance_page(self):
+        if self.typed < len(self.message):      # first press: show the whole page at once
+            self.typed = len(self.message)
+        elif self.page_index + 1 < len(self.pages):
+            self.page_index += 1
+            self.show_page()
+        else:
+            self.reading = False
+            self.level_done = self.review_passed
+
+    # ------------------------------------------------------------------- input
+    def handle_keydown(self, event):
+        if event.key == pygame.K_F5 or (event.key == pygame.K_RETURN and event.mod & pygame.KMOD_CTRL):
+            self.start_game()
+        elif event.key == pygame.K_F6:
+            self.reset_world("Level reset. Press F5 to start the game!" if self.mode == "edit"
+                             else "Level reset. Walk with the arrow keys!")
+        elif self.mode == "edit":
+            self.editor.handle_key(event)
+        elif event.key == pygame.K_ESCAPE:
+            self.mode = "edit"
+            self.held.clear()
+            self.reading = False
+            self.say("Editing. Press F5 to start again with your new code.")
+        elif event.key in (pygame.K_SPACE, pygame.K_RETURN) and self.reading:
+            self.advance_page()
+        elif event.key == pygame.K_n and self.level_done and self.has_next_level():
+            self.load_level(self.level_index + 1)
+        elif event.key in ARROWS:
+            self.held.append(event.key)
+
+    def handle_event(self, event):
+        if event.type == pygame.QUIT:
+            self.running = False
+        elif event.type == pygame.KEYUP:
+            if event.key in self.held:
+                self.held.remove(event.key)
+        elif event.type == pygame.KEYDOWN:
+            self.handle_keydown(event)
+
+    # ------------------------------------------------------------------ update
+    def update(self, dt):
         # walking: finish the current step, or start a new one if an arrow is held
-        if moving:
-            walk_timer += dt
-            if walk_timer >= STEP_MS:
-                moving = False
-                if arriving:
-                    arriving = False
-                    handle_arrival()
-        if mode == "play" and not moving and not queue and not level_done and held:
-            dx, dy, facing = ARROWS[held[-1]]
-            hero_before = list(world.hero)
-            if world.try_move(dx, dy):
-                moving, walk_timer, arriving = True, 0, True
+        if self.moving:
+            self.walk_timer += dt
+            if self.walk_timer >= STEP_MS:
+                self.moving = False
+                if self.arriving:
+                    self.arriving = False
+                    self.handle_arrival()
+        can_walk = (self.mode == "play" and not self.moving and not self.queue
+                    and not self.reading and not self.level_done)
+        if can_walk and self.held:
+            dx, dy, self.facing = ARROWS[self.held[-1]]
+            self.hero_before = list(self.world.hero)
+            if self.world.try_move(dx, dy):
+                self.moving, self.walk_timer, self.arriving = True, 0, True
             else:
-                held.clear()   # one bump per key press, not one per frame
-                message, message_color = "Ouch! A tree is in the way.", COLORS["err"]
+                self.held.clear()   # one bump per key press, not one per frame
+                self.say("Ouch! A tree is in the way.", COLORS["err"])
 
         # play back one recorded event at a time
-        event_timer += dt
-        if queue and event_timer >= EVENT_MS:
-            event_timer = 0
-            play_event(queue.pop(0))
+        self.event_timer += dt
+        if self.queue and self.event_timer >= EVENT_MS:
+            self.event_timer = 0
+            self.play_event(self.queue.pop(0))
 
         # typewriter effect: start again whenever the message changes
-        if message != shown_message:
-            shown_message, typed = message, 0.0
-        typed += dt * TYPE_CHARS_PER_SEC / 1000
+        if self.message != self.shown_message:
+            self.shown_message, self.typed = self.message, 0.0
+        self.typed += dt * TYPE_CHARS_PER_SEC / 1000
 
-        screen.fill(COLORS["bg"])
+    # -------------------------------------------------------------------- draw
+    def draw(self):
+        self.screen.fill(COLORS["bg"])
         # slide from the old tile to the new one, with a little hop on each step
-        progress = min(1.0, walk_timer / STEP_MS) if moving else 1.0
-        pos = (hero_before[0] + (world.hero[0] - hero_before[0]) * progress,
-               hero_before[1] + (world.hero[1] - hero_before[1]) * progress)
-        hop = round(abs(math.sin(progress * math.pi)) * 6) if moving else 0
-        cam = camera_origin(pos, level.width, level.height)
-        renderer.draw_map(screen, level, scenery, world.coins, sprites, cam)
-        renderer.draw_hero(screen, sprites, pos, facing, hop, cam)
-        renderer.draw_status(screen, ui_font, gold)
-        renderer.draw_panel(screen, editor, code_font, ui_font, mode)
-        renderer.draw_dialogue(screen, ui_font, message[:int(typed)], message_color)
+        progress = min(1.0, self.walk_timer / STEP_MS) if self.moving else 1.0
+        hero, before = self.world.hero, self.hero_before
+        pos = (before[0] + (hero[0] - before[0]) * progress,
+               before[1] + (hero[1] - before[1]) * progress)
+        hop = round(abs(math.sin(progress * math.pi)) * 6) if self.moving else 0
+        cam = camera_origin(pos, self.level.width, self.level.height)
+        renderer.draw_map(self.screen, self.level, self.scenery, self.world.coins, self.sprites, cam)
+        renderer.draw_hero(self.screen, self.sprites, pos, self.facing, hop, cam)
+        renderer.draw_status(self.screen, self.ui_font, self.gold)
+        renderer.draw_panel(self.screen, self.editor, self.code_font, self.ui_font, self.mode)
+        page_done = self.reading and self.typed >= len(self.message)
+        renderer.draw_dialogue(self.screen, self.ui_font, self.message[:int(self.typed)],
+                               self.message_color, more=page_done)
         pygame.display.flip()
 
-    pygame.quit()
+    def run(self):
+        while self.running:
+            dt = self.clock.tick(60)
+            for event in pygame.event.get():
+                self.handle_event(event)
+            self.update(dt)
+            self.draw()
+        pygame.quit()
+
+
+def main(levels=LEVELS):
+    Game(levels).run()

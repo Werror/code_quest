@@ -7,12 +7,15 @@ STEP_MS = 160            # how long the hero takes to walk one tile
 EVENT_MS = 600           # how long each message from the player's code stays on screen
 VIEW_COLS, VIEW_ROWS = 16, 12   # how many tiles you can see at once (the camera follows the hero)
 VIEW_W, VIEW_H = VIEW_COLS * TILE, VIEW_ROWS * TILE
-PANEL_W, BAR_H = 440, 96
+PANEL_W, BAR_H = 560, 96
 TYPE_CHARS_PER_SEC = 60  # speed of the dialogue box typewriter effect
 
 MAX_ACTIONS = 500        # stop runaway loops that make tons of moves
 MAX_LINES_RUN = 20000    # stop runaway loops like `while True: pass`
-MAX_EDITOR_LINES = 18
+MAX_EDITOR_LINES = 20
+MAX_EDITOR_COLS = 50     # longest line the code box accepts, so text never runs off the panel
+CODE_FONT_NAMES, CODE_FONT_SIZE = "consolas,menlo,dejavusansmono,monospace", 16
+CODE_TEXT_INDENT = 46    # space the panel keeps left of the code text (margin + line numbers)
 
 COLORS = {
     "bg": (24, 26, 38), "floor": (88, 140, 84), "wall": (60, 60, 78),

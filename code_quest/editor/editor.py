@@ -1,6 +1,6 @@
 import pygame
 
-from ..config import COLORS, MAX_EDITOR_LINES
+from ..config import COLORS, MAX_EDITOR_COLS, MAX_EDITOR_LINES
 
 
 class Editor:
@@ -42,8 +42,9 @@ class Editor:
                 L[r] += L[r + 1]
                 del L[r + 1]
         elif event.key == pygame.K_TAB:
-            L[r] = L[r][:c] + "    " + L[r][c:]
-            self.col += 4
+            if len(L[r]) + 4 <= MAX_EDITOR_COLS:
+                L[r] = L[r][:c] + "    " + L[r][c:]
+                self.col += 4
         elif event.key == pygame.K_LEFT:
             if c > 0:
                 self.col -= 1
@@ -65,8 +66,9 @@ class Editor:
         elif event.key == pygame.K_END:
             self.col = len(L[r])
         elif event.unicode and event.unicode.isprintable():
-            L[r] = L[r][:c] + event.unicode + L[r][c:]
-            self.col += 1
+            if len(L[r]) < MAX_EDITOR_COLS:   # no room left on this line: ignore the key
+                L[r] = L[r][:c] + event.unicode + L[r][c:]
+                self.col += 1
 
     def draw(self, surf, font, x0, y0, blink_on):
         lh = font.get_linesize() + 2

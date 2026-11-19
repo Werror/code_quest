@@ -24,14 +24,23 @@ code tells the hero what to do.
   sign checks that the gold matches the coins taken.
 - Each new item should likewise be a small class with stubbed methods, so the
   player learns object-oriented Python from the start.
-- More items (doors, NPCs, chests...) will each get their own exercise.
+- **Level 2 has colored coins.** Map letters: `C` normal (1 gold), `R` red (5),
+  `S` sapphire (10). The game calls `add_coin(self, color)` with the color name;
+  the *player's code* turns the color into gold (if/elif, then dictionaries).
+  The game only knows the true values (`COIN_VALUES` in `levels/level.py`) to
+  check the player's work.
+- **The sign** (the goal) shows a multi-page message (Space = next page). If the
+  Wallet is wrong it explains which coin color added the wrong amount; if it
+  is right it reads the code with `ast` and gives up to 3 improvement tips
+  (shorter `+=`, leftover `pass`, `elif`, dictionary, `else`). Press **N** after
+  a finished level for the next one.
 
 ## Architecture
 ```
 main.py                     entry point
 code_quest/
   config.py                 sizes, speeds, limits, colors
-  engine/game.py            main loop, modes, playback of recorded events
+  engine/game.py            Game class: window, levels, modes, playback of recorded events
   engine/world.py           hero position, coins, walking rules (no pygame)
   engine/renderer.py        all drawing (never changes game state)
   engine/sprites.py         loads and scales the pixel art
@@ -39,13 +48,15 @@ code_quest/
   engine/scenery.py         picks the picture for every map tile (tall trees, etc.)
   engine/camera.py          follows the hero; the map is bigger than the window
   runner/runner.py          CoinSession: holds the player's Wallet object
+  runner/review.py          the sign's advice: what went wrong, tips from reading the code
   runner/api.py             commands the player's code can call (say, print)
   runner/errors.py          Python errors -> friendly messages
   editor/editor.py          the in-game code editor widget
-  levels/level.py           Level class (map, start, goal, coins, starter code)
-  levels/level_01.py        level data
+  levels/level.py           Level class (map, start, goal, colored coins, starter code)
+  levels/level_01.py, level_02.py   level data; levels/__init__.py has LEVELS (play order)
 assets/                     Kenney Tiny Town + Tiny Dungeon (CC0)
-tests/                      runner, world, scenery, camera and level tests
+tests/                      runner, review, world, scenery, camera, editor, level
+                            and an end-to-end Game test (no window needed)
 ```
 - **Trees:** `Scenery` mixes tall trees (two tiles stacked) with single-tile
   trees and bushes, mostly single. Tall trees are always drawn complete.
@@ -67,9 +78,10 @@ record events, animate later. The GOLD box only changes when the event is played
 - Don't add new gameplay features until the owner asks.
 - The old `move_right(3)` / `wall_ahead` style commands were removed on purpose
   (arrow keys walk the hero now). They could return later as an "auto-walk" puzzle.
-- Ideas for later (not yet): more levels each teaching one concept (variables,
-  if, loops, functions), NPCs, doors and chests with their own code, combat,
-  a bigger village with a scrolling camera, a pixel font.
+- Ideas for later (not yet): more levels each teaching one concept (loops,
+  functions, lists), NPCs, doors and chests with their own code, combat,
+  a hand-built village with houses and fences, a pixel font, friendlier
+  Python error messages.
 
 ## Commands
 - Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`

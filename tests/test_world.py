@@ -10,7 +10,7 @@ They use a tiny map of their own, so changing a real level never breaks them.
 from code_quest.engine.world import World
 from code_quest.levels.level import Level
 
-TINY = Level("tiny", ["#####", "#P.C#", "#.#G#", "#####"], starter_code="")
+TINY = Level("tiny", "", ["#####", "#P.C#", "#.#G#", "#####"], starter_code="")
 
 
 def test_hero_starts_on_the_start_tile():
@@ -39,14 +39,14 @@ def test_a_tree_in_the_middle_of_the_map_blocks_too():
 def test_coin_is_picked_up_only_once():
     world = World(TINY)
     world.hero[:] = [3, 1]
-    assert world.pick_up_coin() is True
+    assert world.pick_up_coin() == "normal"
     assert world.collected == 1
-    assert world.pick_up_coin() is False
+    assert world.pick_up_coin() is None
     assert world.collected == 1
 
 
 def test_no_coin_on_an_empty_tile():
-    assert World(TINY).pick_up_coin() is False
+    assert World(TINY).pick_up_coin() is None
 
 
 def test_reset_puts_everything_back():
@@ -55,8 +55,17 @@ def test_reset_puts_everything_back():
     world.pick_up_coin()
     world.reset()
     assert tuple(world.hero) == (1, 1)
-    assert world.coins == {(3, 1)}
+    assert world.coins == {(3, 1): "normal"}
     assert world.collected == 0
+
+
+def test_each_coin_remembers_its_color():
+    level = Level("colors", "", ["#####", "#PRS#", "#..G#", "#####"], starter_code="")
+    world = World(level)
+    world.hero[:] = [2, 1]
+    assert world.pick_up_coin() == "red"
+    world.hero[:] = [3, 1]
+    assert world.pick_up_coin() == "sapphire"
 
 
 def test_goal_is_detected():

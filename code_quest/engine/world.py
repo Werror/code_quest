@@ -11,7 +11,7 @@ class World:
 
     def reset(self):
         self.hero = list(self.level.start)
-        self.coins = set(self.level.coins)
+        self.coins = dict(self.level.coins)   # (x, y) -> color, coins still on the ground
         self.collected = 0
 
     def try_move(self, dx, dy):
@@ -23,13 +23,11 @@ class World:
         return True
 
     def pick_up_coin(self):
-        """If the hero stands on a coin, take it. Returns True if a coin was taken."""
-        here = tuple(self.hero)
-        if here in self.coins:
-            self.coins.remove(here)
+        """If the hero stands on a coin, take it. Returns its color, or None if there is no coin."""
+        color = self.coins.pop(tuple(self.hero), None)
+        if color is not None:
             self.collected += 1
-            return True
-        return False
+        return color
 
     def at_goal(self):
         return tuple(self.hero) == self.level.goal

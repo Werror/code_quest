@@ -19,8 +19,8 @@ def draw_map(screen, level, scenery, coins, sprites, cam):
             screen.blit(sprites.town(scenery.ground[(x, y)]), pos)
             if (x, y) in scenery.objects:
                 screen.blit(sprites.town(scenery.objects[(x, y)]), pos)
-    for (x, y) in coins:
-        screen.blit(sprites.town(T.GOLD), (x * TILE - cam[0], y * TILE - cam[1]))
+    for (x, y), color in coins.items():
+        screen.blit(sprites.coin(color), (x * TILE - cam[0], y * TILE - cam[1]))
     screen.set_clip(None)
 
 
@@ -72,7 +72,7 @@ def _wrap(text, font, max_width):
     return lines
 
 
-def draw_dialogue(screen, font, text, color):
+def draw_dialogue(screen, font, text, color, more=False):
     """A Dragon Quest style text window: navy box, white double border."""
     win_w, _ = window_size()
     pygame.draw.rect(screen, COLORS["bg"], (0, VIEW_H, win_w, BAR_H))   # clear behind the box
@@ -83,3 +83,6 @@ def draw_dialogue(screen, font, text, color):
     line_h = font.get_linesize()
     for i, line in enumerate(_wrap(text, font, box.width - 40)[:3]):
         screen.blit(font.render(line, True, color), (box.x + 20, box.y + 12 + i * line_h))
+    if more:   # a little arrow: "press Space for the next page"
+        tip = pygame.Rect(box.right - 40, box.bottom - 26, 20, 12)
+        pygame.draw.polygon(screen, (255, 255, 255), [tip.topleft, tip.topright, (tip.centerx, tip.bottom)])

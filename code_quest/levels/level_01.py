@@ -2,6 +2,7 @@ from .level import Level
 
 LEVEL_01 = Level(
     name="Level 1",
+    intro="Level 1: Coins! Finish your Wallet, press F5, then walk with the arrow keys.",
     rows=[
         "#############################",
         "#############################",

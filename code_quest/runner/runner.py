@@ -37,7 +37,9 @@ class CoinSession:
     run other people's code on a server.
     """
 
-    def __init__(self, source):
+    def __init__(self, source, pass_color=False):
+        """pass_color: call add_coin(color) instead of add_coin()."""
+        self._pass_color = pass_color
         self._events = []
         safe_builtins = {name: getattr(builtins, name) for name in SAFE_BUILTIN_NAMES}
         safe_builtins["__build_class__"] = builtins.__build_class__   # lets `class` work
@@ -85,8 +87,8 @@ class CoinSession:
             return friendly_error(e)
         return None
 
-    def pick_up_coin(self):
-        """Call wallet.add_coin() once and record what happened."""
+    def pick_up_coin(self, color="normal"):
+        """Call wallet.add_coin() once (with the coin's color, if the level wants it) and record what happened."""
         result = RunResult(self.gold)
         if self.setup_error:
             result.error = self.setup_error
@@ -94,7 +96,10 @@ class CoinSession:
         del self._events[:]
 
         def add_coin_and_check():
-            self.wallet.add_coin()
+            if self._pass_color:
+                self.wallet.add_coin(color)
+            else:
+                self.wallet.add_coin()
             _check_gold(getattr(self.wallet, "gold", None))
 
         result.error = self._guarded(add_coin_and_check)

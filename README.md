@@ -30,12 +30,16 @@ pytest
 2. Press **F5**. If your code has a mistake, the game tells you. If not, the game starts.
 3. Walk with the **arrow keys**. Pick up the coins, then reach the sign.
    Each coin calls your `wallet.add_coin()`, and the GOLD box shows `wallet.gold`.
+   Level 2 has coins of different colors: red is worth 5 and sapphire is worth 10.
+4. At the sign, read what it says about your code. It tells you what to fix, or how to improve working code.
 
 | Key | What it does |
 | --- | --- |
 | F5 (or Ctrl+Enter) | Check your code and start the game |
 | Arrow keys | Walk (while playing) or move the text cursor (while editing) |
 | Esc | Stop playing and go back to editing |
+| Space | Next page when the sign is talking |
+| N | Go to the next level (after you finish one) |
 | F6 | Reset the level |
 
 ## Activate the virtual environment first
