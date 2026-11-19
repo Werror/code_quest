@@ -33,7 +33,9 @@ code tells the hero what to do.
   Wallet is wrong it explains which coin color added the wrong amount; if it
   is right it reads the code with `ast` and gives up to 3 improvement tips
   (shorter `+=`, leftover `pass`, `elif`, dictionary, `else`). Press **N** after
-  a finished level for the next one.
+  a finished level for the next one (N works as soon as the last page shows).
+- **Messages:** passing messages ("Ouch!", "Coin!", `say()`) disappear after
+  `MESSAGE_SECONDS` (3). Errors and the sign's pages stay until dealt with.
 
 ## Architecture
 ```

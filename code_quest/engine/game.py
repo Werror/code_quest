@@ -12,7 +12,8 @@ import math
 
 import pygame
 
-from ..config import CODE_FONT_NAMES, CODE_FONT_SIZE, COLORS, EVENT_MS, STEP_MS, TYPE_CHARS_PER_SEC
+from ..config import (CODE_FONT_NAMES, CODE_FONT_SIZE, COLORS, EVENT_MS, MESSAGE_SECONDS, STEP_MS,
+                      TYPE_CHARS_PER_SEC)
 from ..editor.editor import Editor
 from ..levels import LEVELS
 from ..runner.review import CoinLog, review_code
@@ -57,7 +58,7 @@ class Game:
     def has_next_level(self):
         return self.level_index + 1 < len(self.levels)
 
-    def reset_world(self, text):
+    def reset_world(self, text, seconds=None):
         """Put the hero, coins and gold back to the start (the player's code stays)."""
         self.world.reset()
         # a brand new Wallet() for the player's code
@@ -73,11 +74,14 @@ class Game:
         self.level_done = False
         self.pages, self.page_index, self.reading, self.review_passed = [], 0, False, False
         self.shown_message, self.typed = "", 0.0   # for the typewriter effect
-        self.say(text)
+        self.say(text, seconds=seconds)
 
-    def say(self, text, color=None):
+    def say(self, text, color=None, seconds=None):
+        """Show text in the dialogue box. With `seconds` it disappears by itself afterwards;
+        without, it stays until something else is said."""
         self.message = text
         self.message_color = color or COLORS["text"]
+        self.message_timer = seconds * 1000 if seconds else None
 
     # ---------------------------------------------------------------- starting
     def start_game(self):
@@ -94,7 +98,7 @@ class Game:
             return
         self.loaded_code = self.editor.text
         self.mode = "play"
-        self.reset_world("Game started! Walk with the arrow keys. (Esc = edit your code)")
+        self.reset_world("Game started! Walk with the arrow keys. (Esc = edit your code)", MESSAGE_SECONDS)
 
     # ------------------------------------------------------------ game events
     def handle_arrival(self):
@@ -112,20 +116,26 @@ class Game:
                 self.queue.append(("hint", "Hmm, your gold did not change. Did add_coin() change self.gold?"))
         if self.world.at_goal():
             self.queue.append(("finish",))
+        elif color and not self.world.coins:
+            self.queue.append(("info", "That was every coin! Now walk to the sign to finish the level."))
         self.event_timer = EVENT_MS   # show the first message straight away
 
     def play_event(self, ev):
         """Show one thing the player's code (or the game) recorded."""
         kind = ev[0]
         if kind == "coin":
-            self.say(f"You picked up a {ev[1]} coin!", COLORS["coin"])
+            self.say(f"You picked up a {ev[1]} coin!", COLORS["coin"], MESSAGE_SECONDS)
         elif kind == "gold":
             self.gold = ev[1]
-            self.say(f"Your wallet now has {self.gold} gold.", COLORS["coin"])
+            self.say(f"Your wallet now has {self.gold} gold.", COLORS["coin"], MESSAGE_SECONDS)
         elif kind == "say":
-            self.say(ev[1])
-        elif kind in ("error", "hint"):
-            self.say(ev[1], COLORS["err"])
+            self.say(ev[1], seconds=MESSAGE_SECONDS)
+        elif kind == "hint":
+            self.say(ev[1], COLORS["err"], MESSAGE_SECONDS)
+        elif kind == "info":
+            self.say(ev[1], COLORS["ok"], MESSAGE_SECONDS * 2)
+        elif kind == "error":
+            self.say(ev[1], COLORS["err"])   # stays until the player has read it and fixed it
         elif kind == "finish":
             self.read_the_sign()
 
@@ -139,6 +149,8 @@ class Game:
     def show_page(self):
         good = self.review_passed and self.page_index == 0
         self.say(self.pages[self.page_index], COLORS["ok"] if good else COLORS["text"])
+        if self.review_passed and self.page_index == len(self.pages) - 1:
+            self.level_done = True   # the last page says "Press N", so N has to work right away
 
     def advance_page(self):
         if self.typed < len(self.message):      # first press: show the whole page at once
@@ -155,8 +167,10 @@ class Game:
         if event.key == pygame.K_F5 or (event.key == pygame.K_RETURN and event.mod & pygame.KMOD_CTRL):
             self.start_game()
         elif event.key == pygame.K_F6:
-            self.reset_world("Level reset. Press F5 to start the game!" if self.mode == "edit"
-                             else "Level reset. Walk with the arrow keys!")
+            if self.mode == "edit":
+                self.reset_world("Level reset. Press F5 to start the game!")
+            else:
+                self.reset_world("Level reset. Walk with the arrow keys!", MESSAGE_SECONDS)
         elif self.mode == "edit":
             self.editor.handle_key(event)
         elif event.key == pygame.K_ESCAPE:
@@ -202,13 +216,19 @@ class Game:
                 self.moving, self.walk_timer, self.arriving = True, 0, True
             else:
                 self.held.clear()   # one bump per key press, not one per frame
-                self.say("Ouch! A tree is in the way.", COLORS["err"])
+                self.say("Ouch! A tree is in the way.", COLORS["err"], MESSAGE_SECONDS)
 
         # play back one recorded event at a time
         self.event_timer += dt
         if self.queue and self.event_timer >= EVENT_MS:
             self.event_timer = 0
             self.play_event(self.queue.pop(0))
+
+        # passing messages disappear by themselves
+        if self.message_timer is not None:
+            self.message_timer -= dt
+            if self.message_timer <= 0:
+                self.message, self.message_timer = "", None
 
         # typewriter effect: start again whenever the message changes
         if self.message != self.shown_message:
@@ -231,7 +251,7 @@ class Game:
         renderer.draw_panel(self.screen, self.editor, self.code_font, self.ui_font, self.mode)
         page_done = self.reading and self.typed >= len(self.message)
         renderer.draw_dialogue(self.screen, self.ui_font, self.message[:int(self.typed)],
-                               self.message_color, more=page_done)
+                               self.message_color, more=page_done, show=bool(self.message))
         pygame.display.flip()
 
     def run(self):

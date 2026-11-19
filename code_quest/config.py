@@ -4,6 +4,7 @@ SRC_TILE = 16            # size of one tile in the art files, in pixels
 SCALE = 3                # how many times bigger we draw the pixels
 TILE = SRC_TILE * SCALE  # size of one tile on screen
 STEP_MS = 160            # how long the hero takes to walk one tile
+MESSAGE_SECONDS = 3      # how long a passing message ("Ouch!", "Coin!"...) stays in the text box
 EVENT_MS = 600           # how long each message from the player's code stays on screen
 VIEW_COLS, VIEW_ROWS = 16, 12   # how many tiles you can see at once (the camera follows the hero)
 VIEW_W, VIEW_H = VIEW_COLS * TILE, VIEW_ROWS * TILE

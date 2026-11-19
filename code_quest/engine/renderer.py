@@ -72,10 +72,12 @@ def _wrap(text, font, max_width):
     return lines
 
 
-def draw_dialogue(screen, font, text, color, more=False):
+def draw_dialogue(screen, font, text, color, more=False, show=True):
     """A Dragon Quest style text window: navy box, white double border."""
     win_w, _ = window_size()
     pygame.draw.rect(screen, COLORS["bg"], (0, VIEW_H, win_w, BAR_H))   # clear behind the box
+    if not show:   # nothing to say right now: no box at all
+        return
     box = pygame.Rect(8, VIEW_H + 8, win_w - 16, BAR_H - 16)
     pygame.draw.rect(screen, (14, 22, 90), box, border_radius=6)
     pygame.draw.rect(screen, (255, 255, 255), box, 3, border_radius=6)

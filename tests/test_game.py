@@ -7,7 +7,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame  # noqa: E402  (must come after the environment variables)
 
-from code_quest.config import EVENT_MS, STEP_MS  # noqa: E402
+from code_quest.config import EVENT_MS, MESSAGE_SECONDS, STEP_MS  # noqa: E402
 from code_quest.engine.game import Game  # noqa: E402
 from code_quest.levels import LEVELS  # noqa: E402
 
@@ -66,13 +66,18 @@ def read_the_sign(game):
     return pages
 
 
-def play_level(game, code):
+def walk_to_the_sign(game, code):
+    """Type the code, press F5, collect every coin and arrive at the sign (without reading it yet)."""
     game.editor.lines = code.split("\n")
     game.handle_event(key_down(pygame.K_F5))
     assert game.mode == "play"
     targets = sorted(game.level.coins, key=lambda c: len(route(game.level, game.level.start, c)))
     for target in targets + [game.level.goal]:
         walk_to(game, target)
+
+
+def play_level(game, code):
+    walk_to_the_sign(game, code)
     return read_the_sign(game)
 
 
@@ -142,4 +147,96 @@ def test_typed_digits_reach_the_editor_but_only_while_editing():
     game.mode = "play"
     game.handle_event(pygame.event.Event(pygame.TEXTINPUT, text="9"))
     assert game.editor.text == "5 + 10"          # playing: the code box ignores typing
+    pygame.quit()
+
+
+# --- passing messages disappear after 3 seconds ---------------------------------
+def test_the_tree_message_disappears_after_three_seconds():
+    game = Game(LEVELS)
+    game.handle_event(key_down(pygame.K_F5))
+    game.update(MESSAGE_SECONDS * 1000 + 1)                # let "Game started!" go away first
+    game.handle_event(key_down(pygame.K_UP))               # a tree is right above the start tile
+    game.update(16)
+    assert game.message.startswith("Ouch")
+    game.update(MESSAGE_SECONDS * 1000 - 100)              # almost three seconds
+    assert game.message.startswith("Ouch")
+    game.update(200)                                       # now it is over three seconds
+    assert game.message == ""
+    pygame.quit()
+
+
+def test_an_empty_message_means_no_dialogue_box_is_drawn():
+    game = Game(LEVELS)
+    game.message = ""
+    game.draw()                                            # must not crash with nothing to say
+    pygame.quit()
+
+
+def test_a_new_message_restarts_the_three_seconds():
+    game = Game(LEVELS)
+    game.handle_event(key_down(pygame.K_F5))
+    game.update(MESSAGE_SECONDS * 1000 + 1)
+    for _ in range(2):
+        game.handle_event(key_down(pygame.K_UP))
+        game.update(2000)                                  # bump, wait 2 s, bump again
+    assert game.message.startswith("Ouch")                 # the second bump restarted the clock
+    pygame.quit()
+
+
+def test_errors_and_the_signs_pages_do_not_disappear():
+    game = Game(LEVELS)
+    game.editor.lines = ["class Wallet:", "    def __init__(self)", "        self.gold = 0"]
+    game.handle_event(key_down(pygame.K_F5))
+    game.update(60_000)
+    assert game.message.startswith("Typo on line 2")       # an error stays until fixed
+
+    game.editor.lines = LEVEL_1_CODE.split("\n")
+    walk_to_the_sign(game, LEVEL_1_CODE)
+    game.update(60_000)
+    assert game.reading and game.message.startswith("LEVEL COMPLETE")
+    pygame.quit()
+
+
+# --- finishing a level ----------------------------------------------------------------
+def test_after_the_last_coin_the_game_says_to_walk_to_the_sign():
+    game = Game(LEVELS)
+    game.editor.lines = LEVEL_1_CODE.split("\n")
+    game.handle_event(key_down(pygame.K_F5))
+    for target in sorted(game.level.coins, key=lambda c: len(route(game.level, game.level.start, c))):
+        walk_to(game, target)
+    assert game.gold == 3
+    assert "walk to the sign" in game.message
+    assert not game.level_done                              # the level is not over until the sign
+    pygame.quit()
+
+
+def test_n_works_straight_away_on_the_last_page_of_the_sign():
+    game = Game(LEVELS)
+    walk_to_the_sign(game, LEVEL_1_CODE)
+    while game.page_index < len(game.pages) - 1:           # read every page but do NOT close the sign
+        game.update(5000)
+        game.handle_event(key_down(pygame.K_SPACE))
+    game.update(5000)
+    assert game.message == "Press N for the next level."
+    game.handle_event(key_down(pygame.K_n))                # exactly what the sign tells you to do
+    assert game.level.name == "Level 2"
+    pygame.quit()
+
+
+def test_n_does_nothing_while_the_level_is_not_finished():
+    game = Game(LEVELS)
+    game.handle_event(key_down(pygame.K_F5))
+    game.handle_event(key_down(pygame.K_n))
+    assert game.level.name == "Level 1"
+    pygame.quit()
+
+
+def test_n_does_nothing_if_the_wallet_was_wrong():
+    game = Game(LEVELS)
+    walk_to_the_sign(game, LEVEL_1_CODE.replace("+= 1", "+= 2"))
+    while game.reading:
+        game.update(5000)
+        game.handle_event(key_down(pygame.K_SPACE))
+    game.handle_event(key_down(pygame.K_n))
+    assert game.level.name == "Level 1"
     pygame.quit()
