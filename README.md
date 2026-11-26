@@ -3,6 +3,8 @@
 A tiny 2D RPG where you learn Python by writing real code to move the hero
 to the goal (`G`) and collect coins.
 
+![Code Quest: the hero walks through the forest while the code box shows the Wallet object](docs/screenshot.png)
+
 ## Install
 
 ```bash
